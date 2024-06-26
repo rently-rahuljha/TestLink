@@ -1,0 +1,89 @@
+#! /usr/bin/env python3
+from testlink import TestlinkAPIClient, TestLinkHelper
+from testlink.testlinkerrors import TLResponseError
+import pandas as pd
+import sys
+
+teamname= input("Enter Teamname: ")
+task=input("Enter sheet_id: ")
+
+class TestLink:
+    tl_helper = TestLinkHelper()
+    tl_helper._server_url = "https://tlink19.rentlyqe.com/lib/api/xmlrpc/v1/xmlrpc.php"
+    
+    def __init__(self, details,):
+        #set basic auth details and project id
+        detailList=details.split('-')
+        TestLink.USERNAME = detailList[0]
+        TestLink.tl_helper._devkey = detailList[1]
+        TestLink.project = int(detailList[2])
+        TestLink.tl_helper.setParamsFromArgs('''Manage Testlink via Rahul's UI''')
+        TestLink.myTestLink = self.tl_helper.connect(TestlinkAPIClient) 
+    
+    def setSuite(self,suite):
+        self.suite = int(suite)
+    
+    def createTC(self, name, summary, precondition, revision, automation, initstep, initresult, exectype,time):
+        self.name = name
+        self.summary = summary
+        self.precondition = precondition
+        self.time = time
+        self.initstep = initstep
+        self.initresult = initresult
+        self.execType= exectype
+        self.customfields={"Automation Reason" : automation, "Revision History" : revision}
+        
+    def addTCsteps(self, steps):
+        print(self.name)
+        TestLink.myTestLink.initStep(self.initstep, self.initresult, self.execType)
+        for i in range(0,len(steps)):
+            TestLink.myTestLink.appendStep(steps[i][0], steps[i][1],self.execType)
+        t=TestLink.myTestLink.createTestCase(self.name, self.suite, self.project, self.USERNAME, self.summary,
+            preconditions=self.precondition, importance=1, state=2, estimatedexecduration=self.time)
+        print(t)
+        t=t[0]['additionalInfo']['external_id']
+        tc='RM-'+t
+        TestLink.myTestLink.updateTestCaseCustomFieldDesignValue(tc, 1, self.project, self.customfields)       
+
+if(teamname=="hydra"):
+    sheet_id = "1TLhYlYqApMVRYXMVvHv_jcHSVnKU0I50YHANinZ2UGQ"
+elif(teamname=="spc"):
+    sheet_id="kjhgfdghjkhgfghjgfdghjkjhgfhjhgfdfhjgfgdg"
+
+url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={task}"
+
+# Read the CSV data from the URL using pandas
+try:
+    data = pd.read_csv(url)
+except Exception as e:
+    print(f"Error: {e}")
+steps=[]
+temp=0
+obj=TestLink(data.iloc[0]["User-DevKey-Project"])
+flag=data.iloc[0]["flag"]
+
+for row in range(0, len(data)):
+    col=data.iloc[row]
+    if(str(col["Test Suite"])!="nan"):
+            obj.setSuite(int(col["Test Suite"]))
+    
+    if(str(col["flag"])!="nan"):
+        flag=str(col["flag"])
+        
+    if(flag=="1.0"):
+        if(str(col["Test Name"])!= "nan"):
+            if len(steps)>0:
+                obj.addTCsteps(steps)
+            obj.createTC(
+                str(col["Test Name"]), str(col["Test Sumary"]), str(col["Precondition"]), str(col["Revision"]), str(col["Automation"]),
+                str(col["Action"]), str(col["Result"]),int(col["Exec_type"]),
+                int(col["Time"]),
+                )
+            steps=[]
+            continue
+        temp=[str(col["Action"]), str(col["Result"])]
+        steps.append(temp)
+        
+
+if(flag=="1.0"):
+    obj.addTCsteps(steps)
