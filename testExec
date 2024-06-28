@@ -1,0 +1,60 @@
+#! /usr/bin/env python3
+from testlink import TestlinkAPIClient, TestLinkHelper
+from testlink.testlinkerrors import TLResponseError
+import pandas as pd
+
+teamname= input("Enter Teamname: ")
+if(teamname=="hydra"):
+    sheet_id = "1TLhYlYqApMVRYXMVvHv_jcHSVnKU0I50YHANinZ2UGQ"
+elif(teamname=="spc"):
+    sheet_id="kjhgfdghjkhgfghjgfdghjkjhgfhjhgfdfhjgfgdg"
+
+# first check an invalid devKey and than the own one
+try:
+    sheet_name='Exec'
+    url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}"
+    df = pd.read_csv(url)
+    cred=df["User-DevKey"][0]  
+    ls=cred.split('-')
+    USERNAME=ls[0]
+    tl_helper = TestLinkHelper()
+    tl_helper._server_url = "https://tlink19.rentlyqe.com/lib/api/xmlrpc/v1/xmlrpc.php"
+    tl_helper._devkey = ls[1]
+    tl_helper.setParamsFromArgs('''Executing the test cases''')
+    myTestLink = tl_helper.connect(TestlinkAPIClient) 
+    myTestLink.checkDevKey(devKey='007')
+except TLResponseError as tl_err:
+    if tl_err.code == 2000:
+        myTestLink.checkDevKey()
+    else:
+        raise   
+
+tp=int(df["Test plan"][0])
+build=df["Build Name"][0]
+
+for i in range(0,len(df)):
+    st=df["Status(p/f)"][i]
+    if(st=='p'):
+        step=[]
+        for j in range(1,20):
+            step.append({"step_number": j, "result": 'p', "notes": "As Expected"})
+    else:
+        failed=df["Failed"][i].split(',')
+        failedSteps = [eval(i) for i in failed]
+        failedNotes=df["Failed Step notes"][i].split(',')
+        step=[]
+        for j in range(1,20):
+            if(j in failedSteps):
+                step.append({"step_number": j, "result": 'f', "notes": failedNotes.pop(0)})
+            else:
+                step.append({"step_number": j, "result": 'p', "notes": "As Expected"})
+    print(df["TestCaseID"][i], step)
+    # myTestLink.reportTCResult(
+    #         testplanid=tp,
+    #         testcaseid=df["TestCaseID"][i],
+    #         status=st,
+    #         buildname= build,
+    #         notes= df["Notes"][i],
+    #         steps=step
+    #     )
+        

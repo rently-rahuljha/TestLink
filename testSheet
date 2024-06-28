@@ -17,7 +17,7 @@ class TestLink:
         TestLink.USERNAME = detailList[0]
         TestLink.tl_helper._devkey = detailList[1]
         TestLink.project = int(detailList[2])
-        TestLink.tl_helper.setParamsFromArgs('''Manage Testlink via Rahul's UI''')
+        TestLink.tl_helper.setParamsFromArgs('''Creating Testcases''')
         TestLink.myTestLink = self.tl_helper.connect(TestlinkAPIClient) 
     
     def setSuite(self,suite):
