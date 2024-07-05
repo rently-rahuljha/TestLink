@@ -2,7 +2,6 @@
 from testlink import TestlinkAPIClient, TestLinkHelper
 from testlink.testlinkerrors import TLResponseError
 import pandas as pd
-import sys
 
 teamname= input("Enter Teamname: ")
 task=input("Enter sheet_id: ")
@@ -34,13 +33,13 @@ class TestLink:
         self.customfields={"Automation Reason" : automation, "Revision History" : revision}
         
     def addTCsteps(self, steps):
-        print(self.name)
+        #print(self.name)
         TestLink.myTestLink.initStep(self.initstep, self.initresult, self.execType)
         for i in range(0,len(steps)):
             TestLink.myTestLink.appendStep(steps[i][0], steps[i][1],self.execType)
         t=TestLink.myTestLink.createTestCase(self.name, self.suite, self.project, self.USERNAME, self.summary,
             preconditions=self.precondition, importance=1, state=2, estimatedexecduration=self.time)
-        print(t)
+        #print(t)
         t=t[0]['additionalInfo']['external_id']
         tc='RM-'+t
         TestLink.myTestLink.updateTestCaseCustomFieldDesignValue(tc, 1, self.project, self.customfields)       
