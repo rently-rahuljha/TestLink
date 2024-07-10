@@ -1,6 +1,5 @@
 #! /usr/bin/env python3
 from testlink import TestlinkAPIClient, TestLinkHelper, TestlinkAPIGeneric
-from testlink.testlinkerrors import TLResponseError
 import pandas as pd
 
 teamname= input("Enter Teamname: ")
@@ -20,20 +19,20 @@ class TestLink:
         TestLink.myTestLink = self.tl_helper.connect(TestlinkAPIClient)
         TestLink.testlinkGen = self.tl_helper.connect(TestlinkAPIGeneric) 
     
-    def createTC(self, suite, name, summary, precondition, revision, automation, execType, time, actions, results, req_spec, requirement):
+    def createTC(self, suite, name, summary, precondition, revision, automation, execType, actions, results, time, imp, status, req_spec, requirement):
         TestLink.myTestLink.initStep(actions[0], results[0], execType)
         for i in range(1,len(actions)):
             TestLink.myTestLink.appendStep(actions[i], results[i], execType)
         print(name, suite)
         t=TestLink.myTestLink.createTestCase(name, suite, TestLink.project, TestLink.USERNAME, summary,
-            preconditions=precondition, importance=2, state=2, estimatedexecduration=time)
+            preconditions=precondition, importance=imp, state=status, estimatedexecduration=time)
         t=t[0]['additionalInfo']['external_id']
         if(self.project==258561):
             tc='RM-'+t
         customfields={"Automation Reason" : automation, "Revision History" : revision}
         TestLink.myTestLink.updateTestCaseCustomFieldDesignValue(tc, 1, TestLink.project, customfields)
-        if(requirement!="nan" and req_spec!="nan"):
-            TestLink.testlinkGen.assignRequirements(tc, self.project,[{'req_spec': req_spec, 'requirements': [requirement]}])      
+        if(not pd.isna(requirement) and not pd.isna(req_spec)):
+            TestLink.testlinkGen.assignRequirements(tc, self.project,[{'req_spec': int(req_spec), 'requirements': [int(requirement)]}])      
 
 
 if(teamname=="hydra"):
@@ -55,7 +54,8 @@ for row in range(0, len(data)):
         if(len(action)!=0):
             obj.createTC(suite, name, summary, precondition, 
                         revision, automation, execType, 
-                        time, action, results,
+                        action, results,
+                        time, imp, status,
                         req_spec, requirement)
         action=[]
         results=[]
@@ -72,8 +72,10 @@ for row in range(0, len(data)):
         automation=data["Automation"][row]
         execType=int(data["Exec_type"][row])
         time=int(data["Time"][row])
-        req_spec=int(data["Req_spec"][row])
-        requirement=int(data["Requirement"][row])
+        imp=int(data["Imp"][row])
+        status=int(data["Status"][row])
+        req_spec=data["Req_spec"][row]
+        requirement=data["Requirement"][row]
     if(flag==0):
         continue
     action.append(data["Action"][row])
@@ -81,8 +83,6 @@ for row in range(0, len(data)):
 if(flag==1):
     obj.createTC(suite, name, summary, precondition, 
                         revision, automation, execType, 
-                        time, action, results,
+                        action, results,
+                        time, imp, status,
                         req_spec, requirement)
-
-
-
