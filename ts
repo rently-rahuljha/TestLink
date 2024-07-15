@@ -9,12 +9,11 @@ class TestLink:
     tl_helper = TestLinkHelper()
     tl_helper._server_url = "https://tlink19.rentlyqe.com/lib/api/xmlrpc/v1/xmlrpc.php"
     
-    def __init__(self, details,):
+    def __init__(self):
         #set basic auth details and project id
-        detailList=details.split('-')
-        TestLink.USERNAME = detailList[0]
-        TestLink.tl_helper._devkey = detailList[1]
-        TestLink.project = int(detailList[2])
+        TestLink.USERNAME = "RahulKumar"
+        TestLink.tl_helper._devkey = "3cbc2784674fbd0e2db5607180efa7b1"
+        TestLink.project = 258561
         TestLink.tl_helper.setParamsFromArgs('''Creating Testcases''')
         TestLink.myTestLink = self.tl_helper.connect(TestlinkAPIClient)
         TestLink.testlinkGen = self.tl_helper.connect(TestlinkAPIGeneric) 
@@ -44,7 +43,7 @@ url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sh
 # Read the CSV data from the URL using pandas
 data = pd.read_csv(url)
 #start of main code
-obj=TestLink(data["User-DevKey-Project"][0])
+obj=TestLink()
 action=[]
 results=[]
 flag=1
