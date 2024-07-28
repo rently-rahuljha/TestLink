@@ -1,0 +1,142 @@
+#! /usr/bin/env python3
+from testlink import TestlinkAPIClient, TestLinkHelper, TestlinkAPIGeneric
+import pandas as pd
+from bs4 import BeautifulSoup
+from prettytable import PrettyTable 
+import textwrap, os, shutil
+
+class TestLink:
+    tl_helper = TestLinkHelper()
+    tl_helper._server_url = "https://tlink19.rentlyqe.com/lib/api/xmlrpc/v1/xmlrpc.php"
+    
+    def __init__(self):
+        #set basic auth details and project id
+        TestLink.USERNAME = "RahulKumar"
+        TestLink.tl_helper._devkey = "3cbc2784674fbd0e2db5607180efa7b1"
+        TestLink.project = 258561
+        TestLink.tl_helper.setParamsFromArgs('''Creating Testcases''')
+        TestLink.myTestLink = self.tl_helper.connect(TestlinkAPIClient)
+        TestLink.testlinkGen = self.tl_helper.connect(TestlinkAPIGeneric) 
+        self.terminal_width = shutil.get_terminal_size().columns
+
+    
+    def createTC(self, suite, name, summary, precondition, revision, automation, execType, actions, results, time, imp, status, req_spec, requirement):
+        TestLink.myTestLink.initStep(actions[0], results[0], execType)
+        for i in range(1,len(actions)):
+            TestLink.myTestLink.appendStep(actions[i], results[i], execType)
+        t=TestLink.myTestLink.createTestCase(name, suite, TestLink.project, TestLink.USERNAME, summary,
+            preconditions=precondition, importance=imp, state=status, estimatedexecduration=time)
+        #print(t)
+        tc=TestLink.myTestLink.getTestCase(t[0]['id'])[0]['full_tc_external_id']        
+        customfields={"Automation Reason" : automation, "Revision History" : revision}
+        TestLink.myTestLink.updateTestCaseCustomFieldDesignValue(tc, 1, TestLink.project, customfields)
+        if(not pd.isna(requirement) and not pd.isna(req_spec)):
+            TestLink.testlinkGen.assignRequirements(tc, self.project,[{'req_spec': int(req_spec), 'requirements': [int(requirement)]}])     
+        print(tc, name) 
+        
+    def executeTC(self, tp, build, testcases):
+        for i in testcases:
+            tc=TestLink.myTestLink.getTestCase(i)
+            summary=BeautifulSoup(tc[0]['summary'], 'lxml').get_text()
+            precondition=BeautifulSoup(tc[0]['preconditions'], 'lxml').get_text()
+            print(tc[0]['name'],"\nSummary : ", summary, "\nPreconditions : ", precondition)
+            step=[]
+            steps=tc[0]['steps']
+            stepNumber=1
+            for i in steps:
+                table = PrettyTable()
+                table.field_names = ["Action", "Expected Result"]
+                max_width = self.terminal_width // len(table.field_names) - 5  # Adjust for padding and borders
+                print(max_width, self.terminal_width, len(table.field_names))
+                act = '\n'.join(textwrap.wrap(BeautifulSoup(i['actions'], 'lxml').get_text(), max_width))
+                res = '\n'.join(textwrap.wrap(BeautifulSoup(i['expected_results'], 'lxml').get_text(), max_width))
+                table.add_row([act,res])
+                table.align["Action"] = "l"
+                table.align["Expected Result"] = "l"
+                print(table)
+                st=input("Pass(P) or Fail(F) => ")
+                if(st==''):
+                    step.append({"step_number": stepNumber, "result": 'p', "notes": "As Expected"})
+                else:
+                    reason=input("Reason for failing : ")
+                    step.append({"step_number": stepNumber, "result": 'f', "notes": reason})
+                stepNumber+=1
+            print(step)
+            st=input("Overall status(P/F): ")
+            note=input("Notes: ")
+            exec=float(input("Execution Time: "))
+            # TestLink.myTestLink.reportTCResult(
+            #     testplanid= tp,
+            #     testcaseid=i,
+            #     status=st,
+            #     buildname= build,
+            #     notes= note,
+            #     execduration= exec,
+            #     steps= step,
+            #     user= u
+            # )
+            os.system('clear')
+
+
+try:
+    purpose = input("Creating(C) / Executing(E) the testcase : ")
+    if(purpose=='C'):
+        task=input("Enter sheet_id: ")
+    else:
+        task="RunTests"
+    sheet_id = "1TLhYlYqApMVRYXMVvHv_jcHSVnKU0I50YHANinZ2UGQ"
+    url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={task}"
+    # Read the CSV data from the URL using pandas
+    data = pd.read_csv(url)
+    #start of main code
+    obj=TestLink()
+    if(purpose=='C'):
+        action=[]
+        results=[]
+        flag=1
+        suite=0#Replace with default test suite ID.
+        for row in range(0, len(data)):
+            if(not pd.isna(data["Test Name"][row])):
+                if(len(action)!=0):
+                    obj.createTC(suite, name, summary, precondition, 
+                                revision, automation , execType, 
+                                action, results,
+                                time, imp, status,
+                                req_spec, requirement)
+                action=[]
+                results=[]
+                if(not pd.isna(data["Test Suite"][row])):
+                    suite=int(data["Test Suite"][row])
+                if(data["flag"][row]!=1.0):
+                    flag=0
+                    continue
+                flag=1
+                name=data["Test Name"][row]
+                summary=data["Test Sumary"][row]
+                precondition=data["Precondition"][row]
+                revision=data["Revision"][row]
+                automation=data["Automation"][row]
+                execType=int(data["Exec_type"][row])
+                time=int(data["Time"][row])
+                imp=int(data["Imp"][row])
+                status=int(data["Status"][row])
+                req_spec=data["Req_spec"][row]
+                requirement=data["Requirement"][row]
+            if(flag==0):
+                continue
+            action.append(data["Action"][row])
+            results.append(data["Result"][row])
+        if(flag==1):
+            obj.createTC(suite, name, summary, precondition, 
+                                revision, automation, execType, 
+                                action, results,
+                                time, imp, status,
+                                req_spec, requirement)
+    else:
+        tp=int(data["Test plan"][0])
+        build=data["Build Name"][0]
+        testcases=data["TestCaseID"].tolist()
+        os.system('clear')
+        obj.executeTC(tp, build, testcases)
+except Exception as ex:
+    print("******************Error occured******************\n",ex)
